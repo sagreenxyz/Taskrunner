@@ -1,0 +1,283 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Layout title="Run Report">
+  <!-- Loading state -->
+  <div id="loading-state" class="flex justify-center items-center h-64">
+    <span class="loading loading-spinner loading-lg"></span>
+  </div>
+
+  <!-- Not found state -->
+  <div id="not-found" class="hidden text-center py-16">
+    <div class="text-6xl mb-4">🔍</div>
+    <h2 class="text-2xl font-bold mb-2">Run Not Found</h2>
+    <p class="text-base-content/60 mb-6">The requested run report could not be found.</p>
+    <a href={`${base}/`} class="btn btn-primary">Back to Home</a>
+  </div>
+
+  <!-- Report content -->
+  <div id="report-content" class="hidden">
+    <!-- Action buttons (hidden in print) -->
+    <div id="action-buttons" class="flex flex-wrap gap-3 mb-6 no-print">
+      <button id="print-btn" class="btn btn-outline gap-2">
+        🖨️ Print / Save as PDF
+      </button>
+      <button id="export-json-btn" class="btn btn-outline gap-2">
+        📄 Export JSON
+      </button>
+      <button id="export-md-btn" class="btn btn-outline gap-2">
+        📝 Export Markdown
+      </button>
+      <a href={`${base}/`} class="btn btn-ghost gap-2">
+        🏠 Back to Home
+      </a>
+    </div>
+
+    <!-- Report Header -->
+    <div class="card bg-base-100 shadow mb-6">
+      <div class="card-body">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <h1 id="report-title" class="text-2xl font-bold mb-1"></h1>
+            <div class="flex flex-wrap gap-2 mb-3">
+              <span id="report-template" class="badge badge-primary badge-outline"></span>
+              <span id="report-category" class="badge badge-ghost"></span>
+            </div>
+          </div>
+          <div class="text-right text-sm space-y-1">
+            <div><span class="text-base-content/50">Operator:</span> <span id="report-operator" class="font-medium"></span></div>
+            <div><span class="text-base-content/50">Started:</span> <span id="report-started" class="font-medium"></span></div>
+            <div><span class="text-base-content/50">Completed:</span> <span id="report-completed" class="font-medium"></span></div>
+            <div><span class="text-base-content/50">Duration:</span> <span id="report-duration" class="font-medium"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="card bg-base-100 shadow mb-6">
+      <div class="card-body">
+        <h2 class="card-title mb-4">Summary</h2>
+        <div class="stats stats-horizontal shadow flex-wrap w-full">
+          <div class="stat">
+            <div class="stat-title">Total Steps</div>
+            <div class="stat-value text-2xl" id="sum-total">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Completed</div>
+            <div class="stat-value text-2xl text-success" id="sum-completed">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Skipped</div>
+            <div class="stat-value text-2xl text-warning" id="sum-skipped">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Pass</div>
+            <div class="stat-value text-2xl text-success" id="sum-pass">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">Fail</div>
+            <div class="stat-value text-2xl text-error" id="sum-fail">0</div>
+          </div>
+          <div class="stat">
+            <div class="stat-title">N/A</div>
+            <div class="stat-value text-2xl text-warning" id="sum-na">0</div>
+          </div>
+        </div>
+
+        <!-- Runtime-added steps callout -->
+        <div id="runtime-steps-alert" class="hidden mt-4">
+          <div class="alert alert-warning">
+            <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+            <div>
+              <h3 class="font-bold">Steps Added at Runtime</h3>
+              <div id="runtime-steps-list" class="text-sm"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step Details -->
+    <div class="card bg-base-100 shadow mb-6">
+      <div class="card-body">
+        <h2 class="card-title mb-4">Step Details</h2>
+        <div id="steps-accordion" class="space-y-2"></div>
+      </div>
+    </div>
+  </div>
+</Layout>
+
+<style>
+  @media print {
+    .no-print { display: none !important; }
+    .collapse-content { display: block !important; }
+    .collapse { break-inside: avoid; }
+  }
+</style>
+
+<script>
+  import {
+    getRunById,
+    exportRunAsJSON,
+    exportRunAsMarkdown,
+    formatDuration,
+  } from '../services/runService.ts';
+
+  const params = new URLSearchParams(window.location.search);
+  const runId = params.get('run');
+
+  const loadingEl = document.getElementById('loading-state');
+  const notFoundEl = document.getElementById('not-found');
+  const reportEl = document.getElementById('report-content');
+
+  function showNotFound() {
+    loadingEl?.classList.add('hidden');
+    notFoundEl?.classList.remove('hidden');
+  }
+
+  function formatDate(iso: string) {
+    return new Date(iso).toLocaleString();
+  }
+
+  function renderReport() {
+    if (!runId) { showNotFound(); return; }
+
+    const run = getRunById(runId);
+    if (!run) { showNotFound(); return; }
+
+    loadingEl?.classList.add('hidden');
+    reportEl?.classList.remove('hidden');
+
+    // Header
+    (document.getElementById('report-title') as HTMLElement).textContent = run.templateName;
+    (document.getElementById('report-template') as HTMLElement).textContent = run.templateName;
+    (document.getElementById('report-operator') as HTMLElement).textContent = run.operatorName;
+    (document.getElementById('report-started') as HTMLElement).textContent = formatDate(run.startedAt);
+    (document.getElementById('report-completed') as HTMLElement).textContent = run.completedAt ? formatDate(run.completedAt) : 'In Progress';
+    
+    const dur = run.completedAt
+      ? formatDuration(new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime())
+      : 'N/A';
+    (document.getElementById('report-duration') as HTMLElement).textContent = dur;
+
+    // Stats
+    const completed = run.steps.filter(s => s.status === 'complete').length;
+    const skipped = run.steps.filter(s => s.status === 'skipped').length;
+    let passCount = 0, failCount = 0, naCount = 0;
+    for (const step of run.steps) {
+      const allCaptured = [...step.captured, ...step.subtasks.flatMap(sub => sub.captured)];
+      for (const c of allCaptured) {
+        if (c.value === 'Pass') passCount++;
+        else if (c.value === 'Fail') failCount++;
+        else if (c.value === 'N-A') naCount++;
+      }
+    }
+
+    (document.getElementById('sum-total') as HTMLElement).textContent = String(run.steps.length);
+    (document.getElementById('sum-completed') as HTMLElement).textContent = String(completed);
+    (document.getElementById('sum-skipped') as HTMLElement).textContent = String(skipped);
+    (document.getElementById('sum-pass') as HTMLElement).textContent = String(passCount);
+    (document.getElementById('sum-fail') as HTMLElement).textContent = String(failCount);
+    (document.getElementById('sum-na') as HTMLElement).textContent = String(naCount);
+
+    // Runtime-added steps
+    const runtimeSteps = run.steps.filter(s => s.addedAtRuntime);
+    if (runtimeSteps.length > 0) {
+      document.getElementById('runtime-steps-alert')?.classList.remove('hidden');
+      const list = document.getElementById('runtime-steps-list');
+      if (list) {
+        list.textContent = runtimeSteps.map(s => s.title).join(', ');
+      }
+    }
+
+    // Steps accordion
+    const accordion = document.getElementById('steps-accordion');
+    if (!accordion) return;
+
+    run.steps.forEach((step, idx) => {
+      const statusColor = step.status === 'complete' ? 'badge-success' : step.status === 'skipped' ? 'badge-warning' : 'badge-ghost';
+
+      let fieldsHtml = '';
+      if (step.captured.length > 0) {
+        fieldsHtml += '<table class="table table-sm w-full mb-2"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
+        for (const c of step.captured) {
+          const field = step.fields.find(f => f.id === c.fieldId);
+          const val = Array.isArray(c.value) ? c.value.join(', ') : String(c.value);
+          fieldsHtml += `<tr><td class="font-medium">${field?.label ?? c.fieldId}</td><td>${val}</td></tr>`;
+        }
+        fieldsHtml += '</tbody></table>';
+      }
+
+      for (const sub of step.subtasks) {
+        if (sub.captured.length > 0) {
+          fieldsHtml += `<div class="font-semibold text-sm mt-2 mb-1">${sub.title}</div>`;
+          fieldsHtml += '<table class="table table-sm w-full mb-2"><thead><tr><th>Field</th><th>Value</th></tr></thead><tbody>';
+          for (const c of sub.captured) {
+            const field = sub.fields.find(f => f.id === c.fieldId);
+            const val = Array.isArray(c.value) ? c.value.join(', ') : String(c.value);
+            fieldsHtml += `<tr><td class="font-medium">${field?.label ?? c.fieldId}</td><td>${val}</td></tr>`;
+          }
+          fieldsHtml += '</tbody></table>';
+        }
+      }
+
+      const notesHtml = step.notes
+        ? `<div class="mt-2"><span class="font-medium">Notes:</span> <span class="text-base-content/70">${step.notes}</span></div>`
+        : '';
+
+      const runtimeBadge = step.addedAtRuntime
+        ? '<span class="badge badge-warning badge-sm ml-2">Added at runtime</span>'
+        : '';
+
+      const el = document.createElement('div');
+      el.className = 'collapse collapse-arrow border border-base-300 rounded-lg';
+      el.innerHTML = `
+        <input type="checkbox" checked />
+        <div class="collapse-title font-medium flex items-center gap-2 flex-wrap">
+          <span>${idx + 1}. ${step.title}</span>
+          <span class="badge badge-ghost badge-sm">${step.type}</span>
+          <span class="badge ${statusColor} badge-sm">${step.status}</span>
+          ${runtimeBadge}
+        </div>
+        <div class="collapse-content">
+          <div class="text-xs text-base-content/50 mb-2">
+            ${step.startedAt ? `Started: ${formatDate(step.startedAt)}` : ''}
+            ${step.completedAt ? ` · Completed: ${formatDate(step.completedAt)}` : ''}
+          </div>
+          ${fieldsHtml || '<div class="text-base-content/40 text-sm">No data captured</div>'}
+          ${notesHtml}
+        </div>
+      `;
+      accordion.appendChild(el);
+    });
+
+    // Action buttons
+    document.getElementById('print-btn')?.addEventListener('click', () => {
+      window.print();
+    });
+
+    document.getElementById('export-json-btn')?.addEventListener('click', () => {
+      exportRunAsJSON(run);
+    });
+
+    document.getElementById('export-md-btn')?.addEventListener('click', () => {
+      const md = exportRunAsMarkdown(run);
+      const blob = new Blob([md], { type: 'text/markdown' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `run_${run.runId}.md`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    });
+  }
+
+  renderReport();
+</script>
