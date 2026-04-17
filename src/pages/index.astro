@@ -129,16 +129,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
   // Discard from alert
   document.getElementById('discard-run-btn')?.addEventListener('click', () => {
+    console.log('[index] discard-run-btn clicked');
     document.getElementById('discard-modal').showModal();
   });
 
   document.getElementById('discard-confirm-btn')?.addEventListener('click', () => {
+    console.log('[index] discard-confirm-btn clicked');
     discardActiveRun();
     document.getElementById('active-run-alert')?.classList.add('hidden');
     document.getElementById('discard-modal').close();
   });
 
   document.getElementById('discard-cancel-btn')?.addEventListener('click', () => {
+    console.log('[index] discard-cancel-btn clicked');
     document.getElementById('discard-modal').close();
   });
 
@@ -148,6 +151,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   document.querySelectorAll('.start-procedure-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const templateId = btn.dataset.templateId;
+      console.log('[index] start-procedure-btn clicked', { templateId });
       const currentRun = loadActiveRun();
 
       if (!currentRun) {
@@ -160,6 +164,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   });
 
   document.getElementById('overwrite-confirm-btn')?.addEventListener('click', () => {
+    console.log('[index] overwrite-confirm-btn clicked', { pendingTemplateId });
     discardActiveRun();
     document.getElementById('overwrite-modal').close();
     if (pendingTemplateId) {
@@ -168,6 +173,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   });
 
   document.getElementById('overwrite-cancel-btn')?.addEventListener('click', () => {
+    console.log('[index] overwrite-cancel-btn clicked');
     pendingTemplateId = null;
     document.getElementById('overwrite-modal').close();
   });

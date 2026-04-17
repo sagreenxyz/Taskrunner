@@ -123,11 +123,13 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     document.querySelectorAll('.delete-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         pendingDeleteId = (btn as HTMLButtonElement).dataset.runId ?? null;
+        console.log('[history] delete-btn clicked', { runId: pendingDeleteId });
         (document.getElementById('delete-modal') as HTMLDialogElement).showModal();
       });
     });
 
     document.getElementById('delete-confirm-btn')?.addEventListener('click', () => {
+      console.log('[history] delete-confirm-btn clicked', { runId: pendingDeleteId });
       if (pendingDeleteId) {
         deleteRun(pendingDeleteId);
         (document.getElementById('delete-modal') as HTMLDialogElement).close();
@@ -136,6 +138,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     });
 
     document.getElementById('delete-cancel-btn')?.addEventListener('click', () => {
+      console.log('[history] delete-cancel-btn clicked');
       pendingDeleteId = null;
       (document.getElementById('delete-modal') as HTMLDialogElement).close();
     });
