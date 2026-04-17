@@ -241,26 +241,32 @@ export default function RunApp({ templateId, base }: RunAppProps) {
 
   useEffect(() => {
     const active = loadActiveRun();
+    console.log("[RunApp] init useEffect", { templateId, hasActiveRun: !!active, activeRunTemplateId: active?.templateId });
 
     if (active) {
       if (!templateId || active.templateId === templateId) {
+        console.log("[RunApp] resuming active run", { runId: active.runId });
         setRun(active);
         setLoading(false);
         return;
       }
+      console.log("[RunApp] active run templateId mismatch, ignoring", { activeTemplateId: active.templateId, requestedTemplateId: templateId });
     }
 
     if (!templateId) {
+      console.log("[RunApp] no templateId, redirecting to home");
       window.location.href = `${base}/`;
       return;
     }
 
     const template = templateRegistry.find((t) => t.id === templateId);
     if (!template) {
+      console.warn("[RunApp] template not found in registry", { templateId, available: templateRegistry.map(t => t.id) });
       window.location.href = `${base}/`;
       return;
     }
 
+    console.log("[RunApp] template found, showing operator modal", { templateId: template.id, templateName: template.name });
     setPendingTemplate(template);
     setShowOperatorModal(true);
     setLoading(false);
@@ -283,12 +289,18 @@ export default function RunApp({ templateId, base }: RunAppProps) {
   }, [run]);
 
   const handleStartRun = () => {
+    console.log("[RunApp] handleStartRun", { operatorName, pendingTemplateId: pendingTemplate?.id });
     if (!operatorName.trim()) {
       setOperatorError(true);
+      console.warn("[RunApp] handleStartRun: operator name is empty");
       return;
     }
-    if (!pendingTemplate) return;
+    if (!pendingTemplate) {
+      console.warn("[RunApp] handleStartRun: no pendingTemplate");
+      return;
+    }
     const newRun = startRun(pendingTemplate, operatorName.trim());
+    console.log("[RunApp] handleStartRun: run created", { runId: newRun.runId });
     setRun(newRun);
     setShowOperatorModal(false);
     setPendingTemplate(null);
@@ -305,6 +317,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
 
   const handleFieldChange = useCallback(
     (stepId: string, fieldId: string, value: CapturedField["value"]) => {
+      console.log("[RunApp] handleFieldChange", { stepId, fieldId, value });
       updateRun((r) => {
         const step = r.steps.find((s) => s.id === stepId);
         if (!step) return r;
@@ -335,6 +348,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
 
   const handlePrev = useCallback(() => {
     if (!run) return;
+    console.log("[RunApp] handlePrev", { currentStepIndex: run.currentStepIndex, currentSubtaskIndex: run.currentSubtaskIndex });
     updateRun((r) => {
       const step = r.steps[r.currentStepIndex];
       const hasSubtasks = step.subtasks.length > 0;
@@ -357,6 +371,16 @@ export default function RunApp({ templateId, base }: RunAppProps) {
     const isLastStep = run.currentStepIndex === run.steps.length - 1;
     const isVeryLast = isLastStep && isLastSubtask;
 
+    console.log("[RunApp] handleNext", {
+      currentStepIndex: run.currentStepIndex,
+      currentSubtaskIndex: run.currentSubtaskIndex,
+      stepTitle: step.title,
+      hasSubtasks,
+      isLastSubtask,
+      isLastStep,
+      isVeryLast,
+    });
+
     if (isVeryLast) {
       // Cancel any pending debounced save before completing, so the completed
       // run is not written back to ACTIVE_RUN_KEY after completeRun removes it.
@@ -368,6 +392,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
       }
       s.status = "complete";
       s.completedAt = new Date().toISOString();
+      console.log("[RunApp] handleNext: completing run, navigating to report", { runId: r.runId });
       completeRun(r);
       window.location.href = `${base}/report?run=${encodeURIComponent(r.runId)}`;
       return;

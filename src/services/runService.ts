@@ -15,6 +15,7 @@ export function startRun(
   template: ProcedureTemplate,
   operatorName: string
 ): ProcedureRun {
+  console.log("[runService] startRun called", { templateId: template.id, templateName: template.name, operatorName });
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
 
@@ -46,8 +47,9 @@ export function startRun(
 
   try {
     localStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run));
-  } catch {
-    // ignore storage errors
+    console.log("[runService] startRun saved to localStorage", run);
+  } catch (e) {
+    console.error("[runService] startRun failed to save to localStorage", e);
   }
 
   return run;
@@ -60,8 +62,9 @@ export function saveActiveRun(run: ProcedureRun): void {
   saveDebounceTimer = setTimeout(() => {
     try {
       localStorage.setItem(ACTIVE_RUN_KEY, JSON.stringify(run));
-    } catch {
-      // ignore storage errors
+      console.log("[runService] saveActiveRun persisted", { runId: run.runId, currentStepIndex: run.currentStepIndex, currentSubtaskIndex: run.currentSubtaskIndex });
+    } catch (e) {
+      console.error("[runService] saveActiveRun failed", e);
     }
     checkStorageUsage();
     saveDebounceTimer = null;
@@ -78,14 +81,21 @@ export function cancelPendingSave(): void {
 export function loadActiveRun(): ProcedureRun | null {
   try {
     const raw = localStorage.getItem(ACTIVE_RUN_KEY);
-    if (!raw) return null;
-    return JSON.parse(raw) as ProcedureRun;
-  } catch {
+    if (!raw) {
+      console.log("[runService] loadActiveRun: no active run found in localStorage");
+      return null;
+    }
+    const run = JSON.parse(raw) as ProcedureRun;
+    console.log("[runService] loadActiveRun: found run", { runId: run.runId, templateId: run.templateId, templateName: run.templateName, currentStepIndex: run.currentStepIndex });
+    return run;
+  } catch (e) {
+    console.error("[runService] loadActiveRun: failed to parse", e);
     return null;
   }
 }
 
 export function completeRun(run: ProcedureRun): void {
+  console.log("[runService] completeRun called", { runId: run.runId, steps: run.steps.length });
   const completedAt = new Date().toISOString();
   run.completedAt = completedAt;
 
@@ -127,8 +137,9 @@ export function completeRun(run: ProcedureRun): void {
     localStorage.setItem(SUMMARIES_KEY, JSON.stringify(existing));
     localStorage.setItem(`proc_run_${run.runId}`, JSON.stringify(run));
     localStorage.removeItem(ACTIVE_RUN_KEY);
-  } catch {
-    // ignore storage errors
+    console.log("[runService] completeRun saved summary", summary);
+  } catch (e) {
+    console.error("[runService] completeRun failed to save", e);
   }
 }
 
