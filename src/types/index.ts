@@ -83,6 +83,7 @@ export interface ProcedureRun {
   currentStepIndex: number;
   currentSubtaskIndex: number;
   steps: RunStep[];
+  caseId?: string;
 }
 
 export interface RunSummary {
@@ -96,4 +97,13 @@ export interface RunSummary {
   passCount: number;
   failCount: number;
   naCount: number;
+  caseId?: string;
+}
+
+export interface Case {
+  id: string;
+  name: string;
+  description?: string;
+  createdAt: string;
+  runIds: string[];
 }

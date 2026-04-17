@@ -1,0 +1,273 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Layout title="Cases" page="cases">
+  <div class="mb-8 flex items-center justify-between gap-4 flex-wrap">
+    <div>
+      <h1 class="text-3xl font-bold mb-1">Cases</h1>
+      <p class="text-base-content/60">Group procedure runs into cases for consolidated reporting.</p>
+    </div>
+    <button id="new-case-btn" class="btn btn-primary btn-sm gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+      </svg>
+      New Case
+    </button>
+  </div>
+
+  <!-- Loading state -->
+  <div id="loading-state" class="flex justify-center items-center h-40">
+    <span class="loading loading-spinner loading-lg text-primary"></span>
+  </div>
+
+  <!-- Empty state -->
+  <div id="empty-state" class="hidden">
+    <div class="hero bg-base-100 rounded-2xl shadow py-16 px-6">
+      <div class="hero-content text-center flex-col">
+        <div class="text-7xl mb-2 select-none">🗂️</div>
+        <h2 class="text-2xl font-bold mb-2">No Cases Yet</h2>
+        <p class="text-base-content/50 max-w-sm mb-6">
+          Create a case to group related procedure runs together and view consolidated reports.
+        </p>
+        <button id="empty-new-case-btn" class="btn btn-primary gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          Create First Case
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cases list -->
+  <div id="cases-list" class="hidden space-y-3" aria-live="polite"></div>
+
+  <!-- New / Edit Case modal -->
+  <dialog id="case-modal" class="modal">
+    <div class="modal-box">
+      <h3 id="case-modal-title" class="font-bold text-lg mb-4">New Case</h3>
+      <div class="form-control mb-3">
+        <label class="label"><span class="label-text font-medium">Case Name <span class="text-error">*</span></span></label>
+        <input id="case-name-input" type="text" placeholder="e.g. Patient John Doe — April 2025" class="input input-bordered w-full" maxlength="120" />
+      </div>
+      <div class="form-control mb-4">
+        <label class="label"><span class="label-text font-medium">Description</span></label>
+        <textarea id="case-desc-input" placeholder="Optional notes about this case…" class="textarea textarea-bordered w-full" rows="3" maxlength="500"></textarea>
+      </div>
+      <div id="case-modal-error" class="hidden">
+        <div class="alert alert-error text-sm py-2 mb-3">Case name is required.</div>
+      </div>
+      <div class="modal-action">
+        <button id="case-modal-cancel" class="btn btn-ghost">Cancel</button>
+        <button id="case-modal-save" class="btn btn-primary gap-2">Save Case</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
+  <!-- Delete confirm modal -->
+  <dialog id="delete-modal" class="modal">
+    <div class="modal-box">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-error text-3xl">🗑</div>
+        <h3 class="font-bold text-lg text-error">Delete Case?</h3>
+      </div>
+      <p class="py-4 text-base-content/70">This will delete the case. The runs inside it will <strong>not</strong> be deleted — they will just be unassigned.</p>
+      <div class="modal-action">
+        <button id="delete-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="delete-confirm-btn" class="btn btn-error gap-2">🗑 Delete Case</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+</Layout>
+
+<script>
+  import { getCases, createCase, updateCase, deleteCase } from '../services/caseService.ts';
+  import { getRunHistory } from '../services/runService.ts';
+
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const loadingEl = document.getElementById('loading-state')!;
+  const emptyEl = document.getElementById('empty-state')!;
+  const listEl = document.getElementById('cases-list')!;
+  const caseModal = document.getElementById('case-modal') as HTMLDialogElement;
+  const deleteModal = document.getElementById('delete-modal') as HTMLDialogElement;
+
+  let editingCaseId: string | null = null;
+  let pendingDeleteId: string | null = null;
+
+  function openNewCaseModal() {
+    editingCaseId = null;
+    (document.getElementById('case-modal-title') as HTMLElement).textContent = 'New Case';
+    (document.getElementById('case-name-input') as HTMLInputElement).value = '';
+    (document.getElementById('case-desc-input') as HTMLTextAreaElement).value = '';
+    document.getElementById('case-modal-error')?.classList.add('hidden');
+    caseModal.showModal();
+  }
+
+  function openEditCaseModal(id: string, name: string, desc: string) {
+    editingCaseId = id;
+    (document.getElementById('case-modal-title') as HTMLElement).textContent = 'Edit Case';
+    (document.getElementById('case-name-input') as HTMLInputElement).value = name;
+    (document.getElementById('case-desc-input') as HTMLTextAreaElement).value = desc;
+    document.getElementById('case-modal-error')?.classList.add('hidden');
+    caseModal.showModal();
+  }
+
+  function renderCases() {
+    const cases = getCases().sort(
+      (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+    const summaries = getRunHistory();
+
+    loadingEl.classList.add('hidden');
+
+    if (cases.length === 0) {
+      emptyEl.classList.remove('hidden');
+      listEl.classList.add('hidden');
+      return;
+    }
+
+    emptyEl.classList.add('hidden');
+    listEl.classList.remove('hidden');
+    listEl.innerHTML = '';
+
+    cases.forEach(c => {
+      const runCount = c.runIds.length;
+      const caseRuns = summaries.filter(s => c.runIds.includes(s.runId));
+      const createdDate = new Date(c.createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+
+      let totalPass = 0, totalFail = 0, totalNa = 0;
+      for (const r of caseRuns) {
+        totalPass += r.passCount;
+        totalFail += r.failCount;
+        totalNa += r.naCount;
+      }
+
+      const card = document.createElement('div');
+      card.className = 'card bg-base-100 shadow hover:shadow-md transition-all border border-base-200';
+      card.innerHTML = `
+        <div class="card-body p-5">
+          <div class="flex items-start gap-4 flex-wrap">
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 flex-wrap mb-1">
+                <span class="badge badge-primary badge-sm">${runCount} run${runCount !== 1 ? 's' : ''}</span>
+                <span class="text-xs text-base-content/40">${createdDate}</span>
+              </div>
+              <h3 class="font-bold text-base leading-snug">${escHtml(c.name)}</h3>
+              ${c.description ? `<p class="text-sm text-base-content/60 mt-1">${escHtml(c.description)}</p>` : ''}
+            </div>
+            <div class="flex items-center gap-3 shrink-0">
+              ${runCount > 0 ? `
+                <div class="grid grid-cols-3 gap-1 text-center">
+                  <div class="bg-success/10 rounded-lg px-2 py-1">
+                    <div class="text-sm font-bold text-success">${totalPass}</div>
+                    <div class="text-xs text-success/60">Pass</div>
+                  </div>
+                  <div class="bg-error/10 rounded-lg px-2 py-1">
+                    <div class="text-sm font-bold text-error">${totalFail}</div>
+                    <div class="text-xs text-error/60">Fail</div>
+                  </div>
+                  <div class="bg-warning/10 rounded-lg px-2 py-1">
+                    <div class="text-sm font-bold text-warning">${totalNa}</div>
+                    <div class="text-xs text-warning/60">N/A</div>
+                  </div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+          <div class="flex items-center justify-between mt-3 pt-3 border-t border-base-200 flex-wrap gap-2">
+            <div></div>
+            <div class="flex gap-2 flex-wrap">
+              <a href="${base}/case?id=${c.id}" class="btn btn-sm btn-ghost gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Report
+              </a>
+              <button class="btn btn-sm btn-ghost gap-2 edit-case-btn"
+                data-case-id="${c.id}"
+                data-case-name="${escAttr(c.name)}"
+                data-case-desc="${escAttr(c.description ?? '')}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 112.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z" />
+                </svg>
+                Edit
+              </button>
+              <button class="btn btn-sm btn-ghost text-error gap-2 delete-case-btn" data-case-id="${c.id}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      listEl.appendChild(card);
+    });
+
+    document.querySelectorAll('.edit-case-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = btn as HTMLButtonElement;
+        openEditCaseModal(el.dataset.caseId!, el.dataset.caseName!, el.dataset.caseDesc!);
+      });
+    });
+
+    document.querySelectorAll('.delete-case-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingDeleteId = (btn as HTMLButtonElement).dataset.caseId ?? null;
+        deleteModal.showModal();
+      });
+    });
+  }
+
+  function escHtml(str: string): string {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function escAttr(str: string): string {
+    return str.replace(/"/g, '&quot;');
+  }
+
+  // New case buttons
+  document.getElementById('new-case-btn')?.addEventListener('click', openNewCaseModal);
+  document.getElementById('empty-new-case-btn')?.addEventListener('click', openNewCaseModal);
+
+  // Modal save
+  document.getElementById('case-modal-save')?.addEventListener('click', () => {
+    const name = (document.getElementById('case-name-input') as HTMLInputElement).value.trim();
+    const desc = (document.getElementById('case-desc-input') as HTMLTextAreaElement).value.trim();
+    if (!name) {
+      document.getElementById('case-modal-error')?.classList.remove('hidden');
+      return;
+    }
+    document.getElementById('case-modal-error')?.classList.add('hidden');
+    if (editingCaseId) {
+      updateCase(editingCaseId, { name, description: desc || undefined });
+    } else {
+      createCase(name, desc || undefined);
+    }
+    caseModal.close();
+    renderCases();
+  });
+
+  document.getElementById('case-modal-cancel')?.addEventListener('click', () => caseModal.close());
+
+  // Delete confirm
+  document.getElementById('delete-confirm-btn')?.addEventListener('click', () => {
+    if (pendingDeleteId) {
+      deleteCase(pendingDeleteId);
+      pendingDeleteId = null;
+      deleteModal.close();
+      renderCases();
+    }
+  });
+  document.getElementById('delete-cancel-btn')?.addEventListener('click', () => {
+    pendingDeleteId = null;
+    deleteModal.close();
+  });
+
+  renderCases();
+</script>
