@@ -240,6 +240,8 @@ export default function RunApp({ templateId, base }: RunAppProps) {
   runRef.current = run;
 
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const templateId = params.get("template");
     const active = loadActiveRun();
     console.log("[RunApp] init useEffect", { templateId, hasActiveRun: !!active, activeRunTemplateId: active?.templateId });
 
