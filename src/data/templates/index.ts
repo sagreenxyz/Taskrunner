@@ -1,10 +1,16 @@
 import type { ProcedureTemplate } from "../../types/index.ts";
-import networkAudit from "./network-audit.ts";
-import incidentResponse from "./incident-response.ts";
-import serverBuild from "./server-build.ts";
+import { assessmentTemplates } from "./nursing-assessments.ts";
+import { medicationTemplates } from "./nursing-medication.ts";
+import { patientCareTemplates } from "./nursing-patient-care.ts";
+import { procedureTemplates } from "./nursing-procedures.ts";
+import { monitoringTemplates } from "./nursing-monitoring.ts";
+import { safetyDocumentationTemplates } from "./nursing-safety-documentation.ts";
 
 export const templateRegistry: ProcedureTemplate[] = [
-  networkAudit,
-  incidentResponse,
-  serverBuild,
+  ...assessmentTemplates,
+  ...medicationTemplates,
+  ...patientCareTemplates,
+  ...procedureTemplates,
+  ...monitoringTemplates,
+  ...safetyDocumentationTemplates,
 ];
