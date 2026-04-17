@@ -274,6 +274,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
 
   useEffect(() => {
     const handle = () => {
+      console.log("[RunApp] save-and-exit received, saving and navigating home");
       if (runRef.current) saveActiveRun(runRef.current);
       window.location.href = `${base}/`;
     };
