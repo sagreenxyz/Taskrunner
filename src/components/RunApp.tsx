@@ -46,46 +46,65 @@ function StepNavigator({
   onReview: (step: RunStep) => void;
 }) {
   return (
-    <div className="space-y-1 max-h-[60vh] overflow-y-auto pr-1">
+    <div className="space-y-0.5 max-h-[60vh] overflow-y-auto pr-1">
       {run.steps.map((step, idx) => {
         const isActive = idx === run.currentStepIndex;
         const isComplete = step.status === "complete";
         const isSkipped = step.status === "skipped";
-        const icon = isComplete ? "✓" : isActive ? "▶" : isSkipped ? "⊘" : "○";
 
         return (
           <React.Fragment key={step.id}>
             <button
-              className={`w-full text-left flex items-start gap-2 px-2 py-1.5 rounded-lg transition-colors text-sm ${
+              className={`w-full text-left flex items-start gap-3 px-3 py-2 rounded-xl transition-all text-sm group ${
                 isActive
-                  ? "bg-primary/10 text-primary font-medium"
+                  ? "bg-primary text-primary-content font-semibold shadow-sm"
                   : isComplete
                   ? "hover:bg-base-200 cursor-pointer"
-                  : "text-base-content/50 cursor-default"
+                  : "text-base-content/40 cursor-default"
               }`}
               onClick={() => isComplete && onReview(step)}
               disabled={!isComplete}
               type="button"
             >
+              {/* Step status icon */}
               <span
-                className={`font-bold mt-0.5 ${
-                  isComplete
-                    ? "text-success"
-                    : isActive
-                    ? "text-primary"
-                    : "text-base-content/30"
+                className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold mt-0.5 ${
+                  isActive
+                    ? "bg-primary-content/20 text-primary-content"
+                    : isComplete
+                    ? "bg-success text-success-content"
+                    : isSkipped
+                    ? "bg-warning/20 text-warning"
+                    : "bg-base-300 text-base-content/30"
                 }`}
               >
-                {icon}
+                {isComplete ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : isActive ? (
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M8 5v14l11-7z" />
+                  </svg>
+                ) : isSkipped ? (
+                  "⊘"
+                ) : (
+                  <span className="text-[10px]">{idx + 1}</span>
+                )}
               </span>
               <div className="flex-1 min-w-0">
-                <div className="truncate">
-                  {idx + 1}. {step.title}
+                <div className="truncate leading-snug">
+                  {step.title}
                 </div>
                 {step.addedAtRuntime && (
-                  <div className="text-xs text-warning">Added at runtime</div>
+                  <div className="text-xs opacity-70 mt-0.5">+ Added at runtime</div>
                 )}
               </div>
+              {isComplete && !isActive && (
+                <span className="shrink-0 opacity-0 group-hover:opacity-50 text-xs transition-opacity">
+                  view
+                </span>
+              )}
             </button>
 
             {(isActive || isComplete) &&
@@ -94,15 +113,10 @@ function StepNavigator({
                 const isSubActive =
                   isActive && subIdx === run.currentSubtaskIndex;
                 const isSubComplete = !!sub.completedAt;
-                const subIcon = isSubComplete
-                  ? "✓"
-                  : isSubActive
-                  ? "▶"
-                  : "○";
                 return (
                   <div
                     key={sub.id}
-                    className={`ml-6 flex items-center gap-1 text-xs py-0.5 ${
+                    className={`ml-8 flex items-center gap-2 text-xs py-0.5 px-2 ${
                       isSubActive
                         ? "text-primary font-medium"
                         : isSubComplete
@@ -110,7 +124,7 @@ function StepNavigator({
                         : "text-base-content/40"
                     }`}
                   >
-                    <span>{subIcon}</span>
+                    <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${isSubComplete ? "bg-success" : isSubActive ? "bg-primary" : "bg-base-300"}`}></span>
                     <span className="truncate">{sub.title}</span>
                   </div>
                 );
@@ -133,25 +147,23 @@ function ReviewModal({
   return (
     <div className="modal modal-open">
       <div className="modal-box max-w-2xl max-h-screen overflow-y-auto">
-        <h3 className="font-bold text-lg">{step.title}</h3>
-        <div className="py-4 space-y-3">
-          <div className="flex gap-2">
-            <span className="badge badge-ghost">{step.type}</span>
-            <span
-              className={`badge ${
-                step.status === "complete" ? "badge-success" : "badge-ghost"
-              }`}
-            >
+        <div className="flex items-start gap-3 mb-4">
+          <div className="flex gap-2 shrink-0 mt-0.5">
+            <span className="badge badge-ghost badge-sm">{step.type}</span>
+            <span className={`badge badge-sm ${step.status === "complete" ? "badge-success" : "badge-ghost"}`}>
               {step.status}
             </span>
           </div>
+          <h3 className="font-bold text-lg leading-snug">{step.title}</h3>
+        </div>
 
+        <div className="space-y-4">
           {step.captured.length > 0 && (
             <table className="table table-sm w-full">
               <thead>
                 <tr>
-                  <th>Field</th>
-                  <th>Value</th>
+                  <th className="text-base-content/50 font-medium">Field</th>
+                  <th className="text-base-content/50 font-medium">Value</th>
                 </tr>
               </thead>
               <tbody>
@@ -160,12 +172,13 @@ function ReviewModal({
                   const val = Array.isArray(c.value)
                     ? c.value.join(", ")
                     : String(c.value);
+                  const valClass = val === "Pass" ? "text-success font-semibold" : val === "Fail" ? "text-error font-semibold" : val === "N-A" ? "text-warning font-semibold" : "";
                   return (
                     <tr key={c.fieldId}>
-                      <td className="font-medium">
+                      <td className="font-medium text-sm">
                         {field?.label ?? c.fieldId}
                       </td>
-                      <td>{val}</td>
+                      <td className={valClass}>{val}</td>
                     </tr>
                   );
                 })}
@@ -176,12 +189,12 @@ function ReviewModal({
           {step.subtasks.map((sub) =>
             sub.captured.length > 0 ? (
               <div key={sub.id}>
-                <div className="font-semibold text-sm mb-1">{sub.title}</div>
+                <div className="font-semibold text-xs mb-2 text-base-content/50 uppercase tracking-wide">{sub.title}</div>
                 <table className="table table-sm w-full">
                   <thead>
                     <tr>
-                      <th>Field</th>
-                      <th>Value</th>
+                      <th className="text-base-content/50 font-medium">Field</th>
+                      <th className="text-base-content/50 font-medium">Value</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -190,12 +203,13 @@ function ReviewModal({
                       const val = Array.isArray(c.value)
                         ? c.value.join(", ")
                         : String(c.value);
+                      const valClass = val === "Pass" ? "text-success font-semibold" : val === "Fail" ? "text-error font-semibold" : val === "N-A" ? "text-warning font-semibold" : "";
                       return (
                         <tr key={c.fieldId}>
-                          <td className="font-medium">
+                          <td className="font-medium text-sm">
                             {field?.label ?? c.fieldId}
                           </td>
-                          <td>{val}</td>
+                          <td className={valClass}>{val}</td>
                         </tr>
                       );
                     })}
@@ -206,14 +220,18 @@ function ReviewModal({
           )}
 
           {step.notes && (
-            <div>
-              <span className="font-medium">Notes: </span>
-              <span className="text-base-content/70">{step.notes}</span>
+            <div className="bg-base-200 rounded-xl p-3 text-sm">
+              <span className="font-medium text-base-content/60">Notes: </span>
+              <span className="text-base-content/80">{step.notes}</span>
             </div>
+          )}
+
+          {step.captured.length === 0 && step.subtasks.every(s => s.captured.length === 0) && (
+            <div className="text-center py-6 text-base-content/40 text-sm">No data was captured for this step.</div>
           )}
         </div>
         <div className="modal-action">
-          <button className="btn" onClick={onClose} type="button">
+          <button className="btn btn-primary" onClick={onClose} type="button">
             Close
           </button>
         </div>
@@ -437,8 +455,9 @@ export default function RunApp({ templateId, base }: RunAppProps) {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <span className="loading loading-spinner loading-lg"></span>
+      <div className="flex flex-col justify-center items-center h-64 gap-4">
+        <span className="loading loading-spinner loading-lg text-primary"></span>
+        <p className="text-base-content/50 text-sm">Loading procedure…</p>
       </div>
     );
   }
@@ -446,19 +465,44 @@ export default function RunApp({ templateId, base }: RunAppProps) {
   if (showOperatorModal && pendingTemplate) {
     return (
       <div className="modal modal-open">
-        <div className="modal-box">
-          <h3 className="font-bold text-lg">Start Procedure</h3>
-          <p className="py-2 text-base-content/70">{pendingTemplate.name}</p>
-          <div className="form-control mt-4">
-            <label className="label">
-              <span className="label-text font-medium">
-                Your Name <span className="text-error">*</span>
+        <div className="modal-box max-w-md">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="bg-primary/10 p-2 rounded-xl">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6 text-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="font-bold text-lg">Start Procedure</h3>
+              <p className="text-base-content/60 text-sm">{pendingTemplate.name}</p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap gap-3 my-4">
+            <div className="badge badge-ghost gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              ~{pendingTemplate.estimatedMinutes} min
+            </div>
+            <div className="badge badge-ghost gap-1">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
+              </svg>
+              {pendingTemplate.steps.length} steps
+            </div>
+          </div>
+
+          <div className="form-control mt-2">
+            <label className="label pb-1">
+              <span className="label-text font-semibold">
+                Operator Name <span className="text-error">*</span>
               </span>
             </label>
             <input
               type="text"
               className={`input input-bordered w-full ${operatorError ? "input-error" : ""}`}
-              placeholder="Enter your name"
+              placeholder="Enter your full name"
               value={operatorName}
               onChange={(e) => {
                 setOperatorName(e.target.value);
@@ -468,8 +512,8 @@ export default function RunApp({ templateId, base }: RunAppProps) {
               autoFocus
             />
             {operatorError && (
-              <label className="label">
-                <span className="label-text-alt text-error">Name is required</span>
+              <label className="label pt-1">
+                <span className="label-text-alt text-error">Name is required to start</span>
               </label>
             )}
           </div>
@@ -477,8 +521,12 @@ export default function RunApp({ templateId, base }: RunAppProps) {
             <a href={`${base}/`} className="btn btn-ghost">
               Cancel
             </a>
-            <button className="btn btn-primary" onClick={handleStartRun} type="button">
-              Start
+            <button className="btn btn-primary gap-2" onClick={handleStartRun} type="button">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Begin Procedure
             </button>
           </div>
         </div>
@@ -509,66 +557,86 @@ export default function RunApp({ templateId, base }: RunAppProps) {
 
   return (
     <>
-      {/* Progress bar */}
-      <div className="mb-4">
-        <div className="flex justify-between text-sm mb-1">
-          <span>Progress</span>
-          <span>{progressPct}%</span>
+      {/* Top progress bar */}
+      <div className="mb-4 flex items-center gap-3">
+        <div className="flex-1">
+          <div className="flex justify-between text-xs text-base-content/50 mb-1">
+            <span className="font-medium text-base-content/70">
+              {run.templateName}
+            </span>
+            <span>{completedCount}/{run.steps.length} steps · {progressPct}%</span>
+          </div>
+          <progress
+            className="progress progress-primary w-full h-2"
+            value={progressPct}
+            max="100"
+          />
         </div>
-        <progress
-          className="progress progress-primary w-full"
-          value={progressPct}
-          max="100"
-        />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-[280px_1fr_260px] gap-4">
-        {/* Left Panel */}
-        <div className="bg-base-100 rounded-xl shadow p-4 h-fit lg:sticky lg:top-20">
-          <h2 className="font-bold text-sm uppercase tracking-wide text-base-content/50 mb-3">
-            Steps
-          </h2>
+      <div className="grid grid-cols-1 lg:grid-cols-[260px_1fr_240px] gap-4">
+        {/* Left Panel — Step Navigator */}
+        <div className="bg-base-100 rounded-2xl shadow p-4 h-fit lg:sticky lg:top-20">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="font-bold text-xs uppercase tracking-wider text-base-content/40">
+              Steps
+            </h2>
+            <span className="badge badge-ghost badge-sm">
+              {completedCount}/{run.steps.length}
+            </span>
+          </div>
           <StepNavigator run={run} onReview={setReviewStep} />
           <div className="divider my-3"></div>
           <button
-            className="btn btn-outline btn-sm w-full"
+            className="btn btn-outline btn-sm w-full gap-2"
             onClick={() => setShowAddStep(true)}
             type="button"
           >
-            + Add Step
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+            Add Step
           </button>
         </div>
 
-        {/* Center Panel */}
-        <div className="bg-base-100 rounded-xl shadow">
-          <div className="p-4 border-b border-base-200 flex items-center gap-3">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-xl font-bold">{step?.title}</h2>
-                <span className="badge badge-ghost">{step?.type}</span>
-                {step?.addedAtRuntime && (
-                  <span className="badge badge-warning">Added at runtime</span>
-                )}
+        {/* Center Panel — Active Step */}
+        <div className="bg-base-100 rounded-2xl shadow overflow-hidden">
+          {/* Step header */}
+          <div className="p-5 border-b border-base-200 bg-gradient-to-r from-primary/5 to-base-100">
+            <div className="flex items-start gap-3">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <span className="badge badge-primary badge-sm">
+                    Step {run.currentStepIndex + 1}/{run.steps.length}
+                  </span>
+                  <span className="badge badge-ghost badge-sm">{step?.type}</span>
+                  {step?.addedAtRuntime && (
+                    <span className="badge badge-warning badge-sm">+ Runtime</span>
+                  )}
+                </div>
+                <h2 className="text-xl font-bold leading-snug">{step?.title}</h2>
               </div>
+              <button
+                className="btn btn-ghost btn-sm btn-circle shrink-0"
+                onClick={() => setShowInfoModal(true)}
+                title="View step description"
+                type="button"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </button>
             </div>
-            <button
-              className="btn btn-ghost btn-sm btn-circle"
-              onClick={() => setShowInfoModal(true)}
-              title="Step info"
-              type="button"
-            >
-              ?
-            </button>
           </div>
 
           {/* Subtask tabs */}
           {hasSubtasks && (
-            <div className="px-4 pt-3">
+            <div className="px-5 pt-4">
               <div className="tabs tabs-bordered">
                 {step.subtasks.map((sub, idx) => (
                   <button
                     key={sub.id}
-                    className={`tab ${idx === run.currentSubtaskIndex ? "tab-active" : ""}`}
+                    className={`tab gap-2 ${idx === run.currentSubtaskIndex ? "tab-active" : ""}`}
                     onClick={() => {
                       if (sub.completedAt || idx === run.currentSubtaskIndex) {
                         updateRun((r) => {
@@ -579,6 +647,11 @@ export default function RunApp({ templateId, base }: RunAppProps) {
                     }}
                     type="button"
                   >
+                    {sub.completedAt && (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5 text-success" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    )}
                     {sub.title}
                   </button>
                 ))}
@@ -587,7 +660,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
           )}
 
           {/* Fields */}
-          <div className="p-4">
+          <div className="p-5">
             {step && (
               <StepFieldRenderer
                 step={step}
@@ -599,15 +672,15 @@ export default function RunApp({ templateId, base }: RunAppProps) {
           </div>
 
           {/* Notes */}
-          <div className="p-4 border-t border-base-200">
-            <label className="label">
-              <span className="label-text font-medium">
-                Observations / Notes
+          <div className="px-5 pb-4 border-t border-base-200 pt-4">
+            <label className="label pb-1">
+              <span className="label-text font-medium text-base-content/70 text-sm">
+                📝 Observations / Notes
               </span>
             </label>
             <textarea
-              className="textarea textarea-bordered w-full"
-              rows={3}
+              className="textarea textarea-bordered w-full textarea-sm"
+              rows={2}
               placeholder="Add any observations or notes here…"
               value={step?.notes ?? ""}
               onChange={(e) => handleNotesChange(e.target.value)}
@@ -615,93 +688,132 @@ export default function RunApp({ templateId, base }: RunAppProps) {
           </div>
 
           {/* Footer nav */}
-          <div className="p-4 border-t border-base-200 flex justify-between items-center">
+          <div className="px-5 pb-5 border-t border-base-200 pt-4 flex justify-between items-center gap-3">
             <button
-              className="btn btn-outline"
+              className="btn btn-ghost btn-sm gap-2"
               onClick={handlePrev}
               disabled={isPrevDisabled}
               type="button"
             >
-              ← Previous
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+              Previous
             </button>
-            <span className="text-sm text-base-content/50">
-              Step {run.currentStepIndex + 1}/{run.steps.length}
-              {hasSubtasks &&
-                ` · Subtask ${run.currentSubtaskIndex + 1}/${step.subtasks.length}`}
+            <span className="text-xs text-base-content/40 text-center">
+              {hasSubtasks && `Subtask ${run.currentSubtaskIndex + 1}/${step.subtasks.length}`}
             </span>
             <button
-              className={`btn ${isVeryLast ? "btn-success" : "btn-primary"}`}
+              className={`btn btn-sm gap-2 ${isVeryLast ? "btn-success" : "btn-primary"}`}
               onClick={handleNext}
               type="button"
             >
-              {isVeryLast
-                ? "Finish & Generate Report"
-                : isLastSubtask
-                ? "Complete Step →"
-                : "Next Subtask →"}
+              {isVeryLast ? (
+                <>
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  Finish &amp; Report
+                </>
+              ) : isLastSubtask ? (
+                <>
+                  Complete Step
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              ) : (
+                <>
+                  Next Subtask
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </>
+              )}
             </button>
           </div>
         </div>
 
-        {/* Right Panel */}
-        <div className="bg-base-100 rounded-xl shadow p-4 h-fit lg:sticky lg:top-20">
-          <h2 className="font-bold text-sm uppercase tracking-wide text-base-content/50 mb-3">
-            Run Info
-          </h2>
-          <div className="space-y-2 text-sm mb-4">
-            <div>
-              <span className="text-base-content/50">Operator:</span>{" "}
-              <span className="font-medium">{run.operatorName}</span>
+        {/* Right Panel — Run Info */}
+        <div className="bg-base-100 rounded-2xl shadow p-4 h-fit lg:sticky lg:top-20 space-y-4">
+          {/* Radial progress */}
+          <div className="flex flex-col items-center gap-2 py-2">
+            <div
+              className="radial-progress text-primary font-bold text-sm"
+              style={{"--value": progressPct, "--size": "7rem", "--thickness": "0.55rem"} as React.CSSProperties}
+              role="progressbar"
+              aria-valuenow={progressPct}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
+              {progressPct}%
             </div>
-            <div>
-              <span className="text-base-content/50">Started:</span>{" "}
-              <span className="font-medium">
-                {new Date(run.startedAt).toLocaleTimeString()}
-              </span>
+            <div className="text-xs text-base-content/40 font-medium tracking-wide uppercase">
+              Progress
             </div>
-            <div>
-              <span className="text-base-content/50">Elapsed:</span>{" "}
+          </div>
+
+          <div className="divider my-0"></div>
+
+          {/* Operator info */}
+          <div className="space-y-2 text-sm">
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-base-content/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span className="font-medium truncate">{run.operatorName}</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-base-content/40 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
               <ElapsedTimer startedAt={run.startedAt} />
             </div>
           </div>
 
-          <div className="stats stats-vertical shadow w-full text-sm mb-4">
-            <div className="stat py-2">
-              <div className="stat-title text-xs">Total Steps</div>
-              <div className="stat-value text-lg">{run.steps.length}</div>
+          <div className="divider my-0"></div>
+
+          {/* Step stats */}
+          <div className="grid grid-cols-3 gap-1 text-center">
+            <div className="bg-base-200 rounded-xl p-2">
+              <div className="text-lg font-bold text-success">{completedCount}</div>
+              <div className="text-xs text-base-content/40">Done</div>
             </div>
-            <div className="stat py-2">
-              <div className="stat-title text-xs">Completed</div>
-              <div className="stat-value text-lg text-success">{completedCount}</div>
-            </div>
-            <div className="stat py-2">
-              <div className="stat-title text-xs">Remaining</div>
-              <div className="stat-value text-lg text-warning">
+            <div className="bg-base-200 rounded-xl p-2">
+              <div className="text-lg font-bold text-warning">
                 {run.steps.filter((s) => s.status === "pending" || s.status === "active").length}
               </div>
+              <div className="text-xs text-base-content/40">Left</div>
+            </div>
+            <div className="bg-base-200 rounded-xl p-2">
+              <div className="text-lg font-bold">{run.steps.length}</div>
+              <div className="text-xs text-base-content/40">Total</div>
             </div>
           </div>
 
-          <div className="stats stats-vertical shadow w-full text-sm mb-4">
-            <div className="stat py-2">
-              <div className="stat-title text-xs">Pass</div>
-              <div className="stat-value text-lg text-success">{passCount}</div>
+          {/* Pass/Fail/N-A mini stats */}
+          {(passCount + failCount + naCount) > 0 && (
+            <div className="grid grid-cols-3 gap-1 text-center">
+              <div className="bg-success/10 rounded-xl p-2">
+                <div className="text-lg font-bold text-success">{passCount}</div>
+                <div className="text-xs text-success/70">Pass</div>
+              </div>
+              <div className="bg-error/10 rounded-xl p-2">
+                <div className="text-lg font-bold text-error">{failCount}</div>
+                <div className="text-xs text-error/70">Fail</div>
+              </div>
+              <div className="bg-warning/10 rounded-xl p-2">
+                <div className="text-lg font-bold text-warning">{naCount}</div>
+                <div className="text-xs text-warning/70">N/A</div>
+              </div>
             </div>
-            <div className="stat py-2">
-              <div className="stat-title text-xs">Fail</div>
-              <div className="stat-value text-lg text-error">{failCount}</div>
-            </div>
-            <div className="stat py-2">
-              <div className="stat-title text-xs">N/A</div>
-              <div className="stat-value text-lg text-warning">{naCount}</div>
-            </div>
-          </div>
+          )}
 
           <div
-            className={`text-xs ${storageInfo.warningThreshold ? "text-warning font-medium" : "text-base-content/40"}`}
+            className={`text-xs text-center rounded-lg px-2 py-1 ${storageInfo.warningThreshold ? "bg-warning/10 text-warning font-medium" : "text-base-content/30"}`}
           >
-            Storage: {storageInfo.usedMB} MB used
-            {storageInfo.warningThreshold && " ⚠ Near limit"}
+            {storageInfo.warningThreshold ? "⚠ " : ""}Storage: {storageInfo.usedMB} MB
+            {storageInfo.warningThreshold && " — Near limit"}
           </div>
         </div>
       </div>
@@ -710,27 +822,33 @@ export default function RunApp({ templateId, base }: RunAppProps) {
       {showInfoModal && step && (
         <div className="modal modal-open">
           <div className="modal-box max-w-lg">
-            <h3 className="font-bold text-lg">{step.title}</h3>
-            <p className="py-4 text-base-content/80 whitespace-pre-wrap">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="badge badge-ghost badge-lg shrink-0">{step.type}</div>
+              <h3 className="font-bold text-lg leading-snug">{step.title}</h3>
+            </div>
+            <p className="text-base-content/80 whitespace-pre-wrap leading-relaxed">
               {step.description}
             </p>
             {step.subtasks.length > 0 && (
-              <div>
-                <h4 className="font-semibold mb-2">Subtasks:</h4>
-                <ul className="list-disc list-inside space-y-1 text-sm">
-                  {step.subtasks.map((sub) => (
-                    <li key={sub.id}>{sub.title}</li>
+              <div className="mt-4">
+                <h4 className="font-semibold mb-2 text-sm text-base-content/60 uppercase tracking-wide">Subtasks</h4>
+                <ul className="space-y-1">
+                  {step.subtasks.map((sub, i) => (
+                    <li key={sub.id} className="flex items-center gap-2 text-sm">
+                      <span className="w-5 h-5 rounded-full bg-base-200 flex items-center justify-center text-xs font-bold text-base-content/50">{i + 1}</span>
+                      {sub.title}
+                    </li>
                   ))}
                 </ul>
               </div>
             )}
             <div className="modal-action">
               <button
-                className="btn"
+                className="btn btn-primary"
                 onClick={() => setShowInfoModal(false)}
                 type="button"
               >
-                Close
+                Got it
               </button>
             </div>
           </div>
