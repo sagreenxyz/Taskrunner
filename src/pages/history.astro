@@ -1,0 +1,145 @@
+---
+import Layout from '../layouts/Layout.astro';
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+<Layout title="Run History">
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold mb-2">Run History</h1>
+    <p class="text-base-content/70">View and manage past procedure runs.</p>
+  </div>
+
+  <!-- Loading state -->
+  <div id="loading-state" class="flex justify-center items-center h-32">
+    <span class="loading loading-spinner loading-lg"></span>
+  </div>
+
+  <!-- Empty state -->
+  <div id="empty-state" class="hidden">
+    <div class="card bg-base-100 shadow">
+      <div class="card-body items-center text-center py-16">
+        <div class="text-6xl mb-4">📋</div>
+        <h2 class="text-2xl font-bold mb-2">No Runs Yet</h2>
+        <p class="text-base-content/60 mb-6">
+          You haven't completed any procedures yet. Start one to see your history here.
+        </p>
+        <a href={`${base}/`} class="btn btn-primary">Start a Procedure</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- History table -->
+  <div id="history-table" class="hidden">
+    <div class="card bg-base-100 shadow overflow-x-auto">
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Procedure</th>
+            <th>Operator</th>
+            <th>Date</th>
+            <th>Duration</th>
+            <th>Steps</th>
+            <th>Pass / Fail / N/A</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody id="history-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Delete confirm modal -->
+  <dialog id="delete-modal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg text-error">Delete Run?</h3>
+      <p class="py-4">This will permanently delete this run record. This cannot be undone.</p>
+      <div class="modal-action">
+        <button id="delete-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="delete-confirm-btn" class="btn btn-error">Delete</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+</Layout>
+
+<script>
+  import { getRunHistory, deleteRun, formatDuration } from '../services/runService.ts';
+
+  const loadingEl = document.getElementById('loading-state');
+  const emptyEl = document.getElementById('empty-state');
+  const tableEl = document.getElementById('history-table');
+  const tbody = document.getElementById('history-tbody');
+
+  const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+
+  function renderHistory() {
+    const summaries = getRunHistory().sort(
+      (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
+    );
+
+    loadingEl?.classList.add('hidden');
+
+    if (summaries.length === 0) {
+      emptyEl?.classList.remove('hidden');
+      return;
+    }
+
+    tableEl?.classList.remove('hidden');
+
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    summaries.forEach(summary => {
+      const dur = formatDuration(
+        new Date(summary.completedAt).getTime() - new Date(summary.startedAt).getTime()
+      );
+      const date = new Date(summary.startedAt).toLocaleDateString();
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>
+          <div class="font-medium">${summary.templateName}</div>
+          <div class="text-xs text-base-content/50">${summary.runId.slice(0, 8)}…</div>
+        </td>
+        <td>${summary.operatorName}</td>
+        <td>${date}</td>
+        <td>${dur}</td>
+        <td>${summary.stepCount}</td>
+        <td>
+          <span class="text-success font-medium">${summary.passCount}</span> /
+          <span class="text-error font-medium">${summary.failCount}</span> /
+          <span class="text-warning font-medium">${summary.naCount}</span>
+        </td>
+        <td class="flex gap-2">
+          <a href="${base}/report?run=${summary.runId}" class="btn btn-ghost btn-xs">View Report</a>
+          <button class="btn btn-ghost btn-xs text-error delete-btn" data-run-id="${summary.runId}">Delete</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Delete buttons
+    let pendingDeleteId: string | null = null;
+    document.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pendingDeleteId = (btn as HTMLButtonElement).dataset.runId ?? null;
+        (document.getElementById('delete-modal') as HTMLDialogElement).showModal();
+      });
+    });
+
+    document.getElementById('delete-confirm-btn')?.addEventListener('click', () => {
+      if (pendingDeleteId) {
+        deleteRun(pendingDeleteId);
+        (document.getElementById('delete-modal') as HTMLDialogElement).close();
+        renderHistory();
+      }
+    });
+
+    document.getElementById('delete-cancel-btn')?.addEventListener('click', () => {
+      pendingDeleteId = null;
+      (document.getElementById('delete-modal') as HTMLDialogElement).close();
+    });
+  }
+
+  renderHistory();
+</script>
