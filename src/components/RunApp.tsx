@@ -369,7 +369,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
       s.status = "complete";
       s.completedAt = new Date().toISOString();
       completeRun(r);
-      window.location.href = `${base}/report?run=${encodeURIComponent(run.runId)}`;
+      window.location.href = `${base}/report?run=${encodeURIComponent(r.runId)}`;
       return;
     }
 
