@@ -68,6 +68,13 @@ export function saveActiveRun(run: ProcedureRun): void {
   }, 500);
 }
 
+export function cancelPendingSave(): void {
+  if (saveDebounceTimer !== null) {
+    clearTimeout(saveDebounceTimer);
+    saveDebounceTimer = null;
+  }
+}
+
 export function loadActiveRun(): ProcedureRun | null {
   try {
     const raw = localStorage.getItem(ACTIVE_RUN_KEY);

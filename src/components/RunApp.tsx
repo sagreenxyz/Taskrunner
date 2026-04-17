@@ -6,6 +6,7 @@ import {
   saveActiveRun,
   loadActiveRun,
   completeRun,
+  cancelPendingSave,
   checkStorageUsage,
 } from "../services/runService.ts";
 import StepFieldRenderer from "./StepFieldRenderer.tsx";
@@ -357,17 +358,17 @@ export default function RunApp({ templateId, base }: RunAppProps) {
     const isVeryLast = isLastStep && isLastSubtask;
 
     if (isVeryLast) {
-      // Complete the run
-      updateRun((r) => {
-        const s = r.steps[r.currentStepIndex];
-        if (hasSubtasks) {
-          s.subtasks[r.currentSubtaskIndex].completedAt = new Date().toISOString();
-        }
-        s.status = "complete";
-        s.completedAt = new Date().toISOString();
-        completeRun(r);
-        return r;
-      });
+      // Cancel any pending debounced save before completing, so the completed
+      // run is not written back to ACTIVE_RUN_KEY after completeRun removes it.
+      cancelPendingSave();
+      const r = JSON.parse(JSON.stringify(run)) as ProcedureRun;
+      const s = r.steps[r.currentStepIndex];
+      if (hasSubtasks) {
+        s.subtasks[r.currentSubtaskIndex].completedAt = new Date().toISOString();
+      }
+      s.status = "complete";
+      s.completedAt = new Date().toISOString();
+      completeRun(r);
       window.location.href = `${base}/report?run=${encodeURIComponent(run.runId)}`;
       return;
     }
