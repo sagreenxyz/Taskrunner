@@ -359,8 +359,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     });
 
     // Action buttons
-    document.documentElement.setAttribute('data-print-date', new Date().toLocaleDateString());
-
     document.getElementById('print-btn')?.addEventListener('click', () => {
       console.log('[report] print-btn clicked', { runId: run.runId });
       document.documentElement.setAttribute('data-print-date', new Date().toLocaleDateString());
