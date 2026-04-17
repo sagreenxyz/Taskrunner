@@ -333,7 +333,6 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           ${fieldsHtml || '<div class="text-xs text-base-content/40 mt-1">No data captured</div>'}
           ${notesHtml}
         </div>
-        ${!isLast ? '' : ''}
       `;
       timeline.appendChild(li);
     });
