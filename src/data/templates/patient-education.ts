@@ -1,0 +1,168 @@
+import type { ProcedureTemplate } from "../../types/index.ts";
+
+export const patientEducation: ProcedureTemplate = {
+  id: "patient-education",
+  name: "Patient Education Session",
+  category: "Education",
+  description:
+    "Documentation of a patient or family education session including topic taught, teaching methods used, patient's demonstrated understanding, barriers to learning, return demonstration, and follow-up plan.",
+  estimatedMinutes: 20,
+  steps: [
+    {
+      id: "pe-step-1",
+      title: "Session Setup",
+      description: "Identify the patient, learner(s), and the education topic for this session.",
+      type: "info",
+      fields: [
+        { id: "pe-f1", label: "Two patient identifiers confirmed", type: "toggle", required: true },
+        { id: "pe-f2", label: "Session Date/Time", type: "datetime", required: true },
+        { id: "pe-f3", label: "Primary learner", type: "select", required: true, options: ["Patient", "Family member / caregiver", "Patient and family together", "Legal guardian", "Healthcare proxy"] },
+        { id: "pe-f4", label: "Learner relationship (if not patient)", type: "text", required: false },
+        { id: "pe-f5", label: "Interpreter / translation service used", type: "toggle", required: false },
+        { id: "pe-f6", label: "Interpreter details (language / service)", type: "text", required: false },
+      ],
+    },
+    {
+      id: "pe-step-2",
+      title: "Topic & Teaching Method",
+      description: "Document the education topic and methods used to deliver instruction.",
+      type: "form",
+      fields: [
+        {
+          id: "pe-f7",
+          label: "Topic taught",
+          type: "select",
+          required: true,
+          options: [
+            "Medication — purpose, dose, and side effects",
+            "Wound care / dressing change",
+            "Disease process / diagnosis education",
+            "Dietary / nutritional modifications",
+            "Activity / mobility restrictions",
+            "Infection prevention / hand hygiene",
+            "Fall prevention",
+            "Pain management",
+            "Equipment use (e.g., glucometer, nebulizer, CPAP)",
+            "Ostomy / catheter care",
+            "Post-procedure / post-operative instructions",
+            "Signs and symptoms to report",
+            "Discharge instructions",
+            "Other",
+          ],
+        },
+        { id: "pe-f8", label: "Topic detail (if Other or additional specifics)", type: "text", required: false },
+        {
+          id: "pe-f9",
+          label: "Teaching method(s) used",
+          type: "multiselect",
+          required: true,
+          options: [
+            "Verbal instruction",
+            "Written materials / pamphlet",
+            "Video / multimedia",
+            "Hands-on demonstration",
+            "Return demonstration",
+            "Teach-back (verbalization)",
+            "Picture / visual aids",
+          ],
+        },
+        { id: "pe-f10", label: "Education materials provided to patient / family", type: "toggle", required: false },
+      ],
+    },
+    {
+      id: "pe-step-3",
+      title: "Barriers to Learning",
+      description: "Identify and document any barriers that may affect the patient's ability to learn.",
+      type: "form",
+      fields: [
+        {
+          id: "pe-f11",
+          label: "Barriers to learning identified",
+          type: "multiselect",
+          required: false,
+          options: [
+            "None identified",
+            "Pain / discomfort",
+            "Anxiety / emotional distress",
+            "Language barrier",
+            "Low health literacy",
+            "Cognitive impairment",
+            "Sensory impairment (vision / hearing)",
+            "Fatigue",
+            "Denial of condition",
+            "Cultural / religious considerations",
+            "Lack of support system",
+          ],
+        },
+        { id: "pe-f12", label: "Barrier management strategies applied", type: "textarea", required: false },
+      ],
+    },
+    {
+      id: "pe-step-4",
+      title: "Understanding Assessment",
+      description: "Evaluate and document the learner's understanding of the content taught.",
+      type: "capture",
+      fields: [
+        { id: "pe-f13", label: "Patient / family verbalized understanding of key points", type: "toggle", required: true },
+        {
+          id: "pe-f14",
+          label: "Comprehension level demonstrated",
+          type: "select",
+          required: true,
+          options: [
+            "Full understanding — accurately verbalized / demonstrated all key points",
+            "Partial understanding — required clarification on some points",
+            "Minimal understanding — significant re-teaching needed",
+            "Unable to assess at this time",
+          ],
+        },
+        {
+          id: "pe-f15",
+          label: "Return demonstration result (if applicable)",
+          type: "select",
+          required: false,
+          options: [
+            "N/A — skill not demonstrated",
+            "Successful — performed correctly without prompting",
+            "Partial — performed with guidance / cueing",
+            "Unsuccessful — unable to perform correctly; will require re-teaching",
+          ],
+        },
+        { id: "pe-f16", label: "Return demonstration notes", type: "textarea", required: false },
+      ],
+    },
+    {
+      id: "pe-step-5",
+      title: "Follow-Up Plan",
+      description: "Document the plan for reinforcing or continuing education.",
+      type: "form",
+      fields: [
+        {
+          id: "pe-f17",
+          label: "Follow-up education required",
+          type: "toggle",
+          required: true,
+        },
+        {
+          id: "pe-f18",
+          label: "Follow-up plan",
+          type: "textarea",
+          required: false,
+        },
+        {
+          id: "pe-f19",
+          label: "Referral made (dietitian, social work, pharmacy, PT/OT, etc.)",
+          type: "toggle",
+          required: false,
+        },
+        { id: "pe-f20", label: "Referral details", type: "text", required: false },
+        { id: "pe-f21", label: "Patient / family questions addressed", type: "toggle", required: true },
+        { id: "pe-f22", label: "Nurse signature", type: "text", required: true },
+      ],
+    },
+  ],
+};
+
+export const patientEducationTemplates: ProcedureTemplate[] = [
+  patientEducation,
+];
