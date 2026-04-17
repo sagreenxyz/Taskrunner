@@ -4,21 +4,32 @@ import { templateRegistry } from '../data/templates/index.ts';
 
 const categories = [...new Set(templateRegistry.map(t => t.category))];
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const totalTemplates = templateRegistry.length;
+const totalCategories = categories.length;
+const avgMinutes = Math.round(templateRegistry.reduce((sum, t) => sum + t.estimatedMinutes, 0) / totalTemplates);
+const totalSteps = templateRegistry.reduce((sum, t) => sum + t.steps.length, 0);
+
+// Static class maps — full class strings required for Tailwind JIT scanning
+const badgeClasses = ['badge-primary', 'badge-secondary', 'badge-accent', 'badge-info', 'badge-success', 'badge-warning'];
+const accentBarClasses = ['bg-primary', 'bg-secondary', 'bg-accent', 'bg-info', 'bg-success', 'bg-warning'];
+const btnClasses = ['btn-primary', 'btn-secondary', 'btn-accent', 'btn-info', 'btn-success', 'btn-warning'];
 ---
 <Layout title="Home">
   <!-- Active run alert (populated by JS) -->
   <div id="active-run-alert" class="hidden mb-6">
-    <div class="alert alert-info shadow-lg">
+    <div class="alert alert-info shadow-lg border border-info/30">
       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" class="stroke-current shrink-0 w-6 h-6">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
       </svg>
-      <div>
+      <div class="flex-1">
         <h3 class="font-bold">Run in progress: <span id="active-run-name"></span></h3>
-        <div class="text-sm">Started <span id="active-run-time"></span></div>
+        <div class="text-sm opacity-80">Started <span id="active-run-time"></span></div>
       </div>
-      <div class="flex gap-2">
-        <a id="resume-run-btn" href={`${base}/run`} class="btn btn-sm btn-primary">Resume</a>
-        <button id="discard-run-btn" class="btn btn-sm btn-outline btn-error">Discard</button>
+      <div class="flex gap-2 shrink-0">
+        <a id="resume-run-btn" href={`${base}/run`} class="btn btn-sm btn-primary">
+          ▶ Resume
+        </a>
+        <button id="discard-run-btn" class="btn btn-sm btn-ghost btn-error">Discard</button>
       </div>
     </div>
   </div>
@@ -26,11 +37,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <!-- Discard confirmation modal -->
   <dialog id="discard-modal" class="modal">
     <div class="modal-box">
-      <h3 class="font-bold text-lg text-error">Discard Active Run?</h3>
-      <p class="py-4">This will permanently delete the in-progress run. This action cannot be undone.</p>
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-error text-3xl">⚠️</div>
+        <h3 class="font-bold text-lg text-error">Discard Active Run?</h3>
+      </div>
+      <p class="py-4 text-base-content/70">This will permanently delete the in-progress run. This action cannot be undone.</p>
       <div class="modal-action">
         <button id="discard-cancel-btn" class="btn btn-ghost">Cancel</button>
-        <button id="discard-confirm-btn" class="btn btn-error">Discard Run</button>
+        <button id="discard-confirm-btn" class="btn btn-error gap-2">🗑 Discard Run</button>
       </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
@@ -39,44 +53,104 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <!-- Start new run over existing run modal -->
   <dialog id="overwrite-modal" class="modal">
     <div class="modal-box">
-      <h3 class="font-bold text-lg text-warning">Active Run Exists</h3>
-      <p class="py-4">You already have a run in progress. Starting a new procedure will discard the current run. Do you want to continue?</p>
+      <div class="flex items-center gap-3 mb-2">
+        <div class="text-warning text-3xl">⚡</div>
+        <h3 class="font-bold text-lg text-warning">Active Run Exists</h3>
+      </div>
+      <p class="py-4 text-base-content/70">You already have a run in progress. Starting a new procedure will discard the current run. Do you want to continue?</p>
       <div class="modal-action">
         <button id="overwrite-cancel-btn" class="btn btn-ghost">Cancel</button>
-        <button id="overwrite-confirm-btn" class="btn btn-warning">Discard &amp; Start New</button>
+        <button id="overwrite-confirm-btn" class="btn btn-warning gap-2">Discard &amp; Start New</button>
       </div>
     </div>
     <form method="dialog" class="modal-backdrop"><button>close</button></form>
   </dialog>
 
-  <div class="mb-8">
-    <h1 class="text-3xl font-bold mb-2">Procedure Launcher</h1>
-    <p class="text-base-content/70">Select a procedure template to get started.</p>
+  <!-- Hero section -->
+  <div class="hero bg-gradient-to-br from-primary/10 via-base-100 to-secondary/10 rounded-2xl mb-8 py-10 px-6 border border-base-300">
+    <div class="hero-content flex-col gap-6 w-full">
+      <div class="text-center">
+        <div class="inline-flex items-center gap-2 badge badge-primary badge-lg mb-3 px-4 py-3">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Clinical Procedure Runner
+        </div>
+        <h1 class="text-4xl font-extrabold mb-2 tracking-tight">Select a Procedure</h1>
+        <p class="text-base-content/60 text-lg max-w-xl mx-auto">
+          Guided, step-by-step execution with real-time capture and automated reports.
+        </p>
+      </div>
+      <!-- Stats bar -->
+      <div class="stats stats-horizontal shadow bg-base-100 w-full max-w-2xl">
+        <div class="stat place-items-center py-4">
+          <div class="stat-title text-xs">Procedures</div>
+          <div class="stat-value text-2xl text-primary">{totalTemplates}</div>
+        </div>
+        <div class="stat place-items-center py-4">
+          <div class="stat-title text-xs">Categories</div>
+          <div class="stat-value text-2xl text-secondary">{totalCategories}</div>
+        </div>
+        <div class="stat place-items-center py-4">
+          <div class="stat-title text-xs">Total Steps</div>
+          <div class="stat-value text-2xl text-accent">{totalSteps}</div>
+        </div>
+        <div class="stat place-items-center py-4">
+          <div class="stat-title text-xs">Avg Duration</div>
+          <div class="stat-value text-2xl">{avgMinutes}<span class="text-base font-normal text-base-content/50 ml-1">min</span></div>
+        </div>
+      </div>
+    </div>
   </div>
 
-  {categories.map(category => {
+  <!-- Template categories -->
+  {categories.map((category, catIdx) => {
     const templates = templateRegistry.filter(t => t.category === category);
+    const badgeCls = badgeClasses[catIdx % badgeClasses.length];
+    const accentCls = accentBarClasses[catIdx % accentBarClasses.length];
+    const btnCls = btnClasses[catIdx % btnClasses.length];
     return (
-      <div class="mb-10">
-        <div class="divider text-lg font-semibold">{category}</div>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-4">
+      <div class="mb-12">
+        <div class="flex items-center gap-3 mb-5">
+          <span class={`badge ${badgeCls} badge-lg px-4 py-3 text-sm font-semibold`}>{templates.length}</span>
+          <h2 class="text-2xl font-bold">{category}</h2>
+          <div class="flex-1 h-px bg-base-300 ml-2"></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
           {templates.map(template => (
-            <div class="card bg-base-100 shadow-md hover:shadow-lg transition-shadow">
-              <div class="card-body">
-                <div class="flex items-start justify-between gap-2">
-                  <h2 class="card-title text-lg">{template.name}</h2>
-                  <span class="badge badge-primary badge-outline shrink-0">{template.category}</span>
+            <div class={`card bg-base-100 shadow hover:shadow-lg transition-all hover:-translate-y-0.5 border border-base-200 overflow-hidden`}>
+              <!-- Colored top accent bar -->
+              <div class={`h-1.5 ${accentCls} w-full`}></div>
+              <div class="card-body gap-3 pt-4">
+                <h3 class="card-title text-base leading-snug">{template.name}</h3>
+                <p class="text-base-content/60 text-sm flex-1 leading-relaxed">{template.description}</p>
+
+                <!-- Meta row -->
+                <div class="flex items-center gap-3 flex-wrap mt-1">
+                  <div class="flex items-center gap-1 text-xs text-base-content/50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    ~{template.estimatedMinutes} min
+                  </div>
+                  <div class="flex items-center gap-1 text-xs text-base-content/50">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                    {template.steps.length} steps
+                  </div>
                 </div>
-                <p class="text-base-content/70 text-sm flex-1">{template.description}</p>
-                <div class="text-sm text-base-content/50 mt-2">
-                  ⏱ ~{template.estimatedMinutes} min · {template.steps.length} steps
-                </div>
-                <div class="card-actions justify-end mt-4">
+
+                <div class="card-actions justify-end mt-2">
                   <button
-                    class="btn btn-primary start-procedure-btn"
+                    class={`btn ${btnCls} btn-sm gap-2 start-procedure-btn`}
                     data-template-id={template.id}
                   >
-                    Start Procedure
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Start
                   </button>
                 </div>
               </div>
