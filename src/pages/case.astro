@@ -48,7 +48,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
               <span class="badge badge-primary badge-outline">Case Report</span>
             </div>
             <h1 id="case-title" class="text-2xl font-bold mb-1"></h1>
-            <p id="case-desc" class="text-base-content/60 text-sm hidden"></p>
+            <p id="case-description" class="text-base-content/60 text-sm hidden"></p>
           </div>
           <div class="text-sm space-y-1 text-right text-base-content/60">
             <div><span class="text-base-content/50">Created:</span> <span id="case-created" class="font-medium"></span></div>
@@ -146,7 +146,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
     // Header
     (document.getElementById('case-title') as HTMLElement).textContent = caseObj.name;
-    const descEl = document.getElementById('case-desc')!;
+    const descEl = document.getElementById('case-description')!;
     if (caseObj.description) {
       descEl.textContent = caseObj.description;
       descEl.classList.remove('hidden');
