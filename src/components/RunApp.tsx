@@ -368,7 +368,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
         completeRun(r);
         return r;
       });
-      window.location.href = `${base}/report?run=${run.runId}`;
+      window.location.href = `${base}/report?run=${encodeURIComponent(run.runId)}`;
       return;
     }
 

@@ -88,15 +88,15 @@ export function completeRun(run: ProcedureRun): void {
 
   for (const step of run.steps) {
     for (const field of step.captured) {
-      if (field.value === true || field.value === "Pass") passCount++;
-      else if (field.value === false || field.value === "Fail") failCount++;
-      else if (field.value === "N/A" || field.value === "N-A") naCount++;
+      if (field.value === "Pass") passCount++;
+      else if (field.value === "Fail") failCount++;
+      else if (field.value === "N-A") naCount++;
     }
     for (const sub of step.subtasks) {
       for (const field of sub.captured) {
-        if (field.value === true || field.value === "Pass") passCount++;
-        else if (field.value === false || field.value === "Fail") failCount++;
-        else if (field.value === "N/A" || field.value === "N-A") naCount++;
+        if (field.value === "Pass") passCount++;
+        else if (field.value === "Fail") failCount++;
+        else if (field.value === "N-A") naCount++;
       }
     }
   }
