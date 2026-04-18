@@ -13,9 +13,10 @@ let saveDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function startRun(
   template: ProcedureTemplate,
-  operatorName: string
+  operatorName: string,
+  caseId?: string
 ): ProcedureRun {
-  console.log("[runService] startRun called", { templateId: template.id, templateName: template.name, operatorName });
+  console.log("[runService] startRun called", { templateId: template.id, templateName: template.name, operatorName, caseId });
   const runId = crypto.randomUUID();
   const startedAt = new Date().toISOString();
 
@@ -43,6 +44,7 @@ export function startRun(
     currentStepIndex: 0,
     currentSubtaskIndex: 0,
     steps,
+    caseId,
   };
 
   try {
