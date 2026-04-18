@@ -129,6 +129,7 @@ export function completeRun(run: ProcedureRun): void {
     passCount,
     failCount,
     naCount,
+    caseId: run.caseId,
   };
 
   try {
@@ -297,5 +298,26 @@ export function discardActiveRun(): void {
     localStorage.removeItem(ACTIVE_RUN_KEY);
   } catch {
     // ignore
+  }
+}
+
+export function updateRunCaseId(runId: string, caseId: string | undefined): void {
+  try {
+    // Update the full run record
+    const raw = localStorage.getItem(`proc_run_${runId}`);
+    if (raw) {
+      const run = JSON.parse(raw) as ProcedureRun;
+      run.caseId = caseId;
+      localStorage.setItem(`proc_run_${runId}`, JSON.stringify(run));
+    }
+    // Update the summary
+    const summaries = getRunHistory();
+    const idx = summaries.findIndex((s) => s.runId === runId);
+    if (idx !== -1) {
+      summaries[idx].caseId = caseId;
+      localStorage.setItem(SUMMARIES_KEY, JSON.stringify(summaries));
+    }
+  } catch (e) {
+    console.error("[runService] updateRunCaseId failed", e);
   }
 }

@@ -45,6 +45,30 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
   <!-- History cards -->
   <div id="history-cards" class="hidden space-y-3" aria-live="polite"></div>
 
+  <!-- Assign to Case modal -->
+  <dialog id="assign-modal" class="modal">
+    <div class="modal-box">
+      <h3 class="font-bold text-lg mb-4">Assign Run to Case</h3>
+      <div id="assign-no-cases" class="hidden mb-3">
+        <div class="alert alert-info text-sm">
+          No cases exist yet.
+          <a id="assign-create-case-link" href="" class="link ml-1">Create a case first</a>.
+        </div>
+      </div>
+      <div id="assign-cases-select" class="form-control mb-4">
+        <label class="label"><span class="label-text font-medium">Select Case</span></label>
+        <select id="assign-case-select" class="select select-bordered w-full">
+          <option value="">— Unassign from case —</option>
+        </select>
+      </div>
+      <div class="modal-action">
+        <button id="assign-cancel-btn" class="btn btn-ghost">Cancel</button>
+        <button id="assign-confirm-btn" class="btn btn-primary gap-2">Assign</button>
+      </div>
+    </div>
+    <form method="dialog" class="modal-backdrop"><button>close</button></form>
+  </dialog>
+
   <!-- Delete confirm modal -->
   <dialog id="delete-modal" class="modal">
     <div class="modal-box">
@@ -75,13 +99,19 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 </Layout>
 
 <script>
-  import { getRunHistory, deleteRun, getRunById, exportRunAsJSON, formatDuration } from '../services/runService.ts';
+  import { getRunHistory, deleteRun, getRunById, exportRunAsJSON, formatDuration, updateRunCaseId } from '../services/runService.ts';
+  import { getCases, assignRunToCase, removeRunFromCase } from '../services/caseService.ts';
 
   const loadingEl = document.getElementById('loading-state');
   const emptyEl = document.getElementById('empty-state');
   const cardsEl = document.getElementById('history-cards');
 
   const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+  const assignModal = document.getElementById('assign-modal') as HTMLDialogElement;
+  let pendingAssignRunId: string | null = null;
+
+  // Set link on assign modal
+  (document.getElementById('assign-create-case-link') as HTMLAnchorElement).href = `${base}/cases`;
 
   function getOutcomeLabel(passCount: number, failCount: number, total: number) {
     if (total === 0) return { label: 'No data', cls: 'badge-ghost' };
@@ -90,10 +120,61 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     return { label: 'Mixed', cls: 'badge-warning' };
   }
 
+  function openAssignModal(runId: string, currentCaseId?: string) {
+    pendingAssignRunId = runId;
+    const cases = getCases();
+    const selectEl = document.getElementById('assign-case-select') as HTMLSelectElement;
+    const noCasesEl = document.getElementById('assign-no-cases')!;
+    const casesSelectEl = document.getElementById('assign-cases-select')!;
+
+    selectEl.innerHTML = '<option value="">— Unassign from case —</option>';
+    cases.forEach(c => {
+      const opt = document.createElement('option');
+      opt.value = c.id;
+      opt.textContent = c.name;
+      if (c.id === currentCaseId) opt.selected = true;
+      selectEl.appendChild(opt);
+    });
+
+    if (cases.length === 0) {
+      noCasesEl.classList.remove('hidden');
+      casesSelectEl.classList.add('hidden');
+      (document.getElementById('assign-confirm-btn') as HTMLButtonElement).disabled = true;
+    } else {
+      noCasesEl.classList.add('hidden');
+      casesSelectEl.classList.remove('hidden');
+      (document.getElementById('assign-confirm-btn') as HTMLButtonElement).disabled = false;
+    }
+
+    assignModal.showModal();
+  }
+
+  document.getElementById('assign-confirm-btn')?.addEventListener('click', () => {
+    if (!pendingAssignRunId) return;
+    const selectEl = document.getElementById('assign-case-select') as HTMLSelectElement;
+    const selectedCaseId = selectEl.value;
+    if (selectedCaseId) {
+      assignRunToCase(selectedCaseId, pendingAssignRunId);
+      updateRunCaseId(pendingAssignRunId, selectedCaseId);
+    } else {
+      removeRunFromCase(pendingAssignRunId);
+      updateRunCaseId(pendingAssignRunId, undefined);
+    }
+    assignModal.close();
+    pendingAssignRunId = null;
+    renderHistory();
+  });
+
+  document.getElementById('assign-cancel-btn')?.addEventListener('click', () => {
+    assignModal.close();
+    pendingAssignRunId = null;
+  });
+
   function renderHistory() {
     const summaries = getRunHistory().sort(
       (a, b) => new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime()
     );
+    const cases = getCases();
 
     loadingEl?.classList.add('hidden');
 
@@ -117,6 +198,16 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         ? Math.round((summary.passCount / (summary.passCount + summary.failCount)) * 100)
         : null;
 
+      const assignedCase = summary.caseId ? cases.find(c => c.id === summary.caseId) : null;
+      const caseBadge = assignedCase
+        ? `<a href="${base}/case?id=${assignedCase.id}" class="badge badge-info badge-sm gap-1 hover:badge-info/80">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
+            </svg>
+            ${assignedCase.name}
+           </a>`
+        : '';
+
       const card = document.createElement('div');
       card.className = 'card bg-base-100 shadow hover:shadow-md transition-all border border-base-200';
       card.innerHTML = `
@@ -127,6 +218,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
               <div class="flex items-center gap-2 flex-wrap mb-1">
                 <span class="badge ${outcome.cls} badge-sm">${outcome.label}</span>
                 <span class="text-xs text-base-content/40 font-mono">${summary.runId.slice(0, 8)}…</span>
+                ${caseBadge}
               </div>
               <h3 class="font-bold text-base leading-snug truncate">${summary.templateName}</h3>
               <div class="flex items-center gap-3 mt-1 flex-wrap">
@@ -176,14 +268,20 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
           </div>
 
           <!-- Footer -->
-          <div class="flex items-center justify-between mt-3 pt-3 border-t border-base-200">
+          <div class="flex items-center justify-between mt-3 pt-3 border-t border-base-200 flex-wrap gap-2">
             <div class="flex items-center gap-2 text-xs text-base-content/40">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2" />
               </svg>
               ${summary.stepCount} steps
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 flex-wrap">
+              <button class="btn btn-sm btn-ghost gap-2 assign-case-btn" data-run-id="${summary.runId}" data-case-id="${summary.caseId ?? ''}">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8" />
+                </svg>
+                ${assignedCase ? 'Change Case' : 'Assign to Case'}
+              </button>
               <a href="${base}/report?run=${summary.runId}" class="btn btn-sm btn-ghost gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -201,6 +299,14 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
         </div>
       `;
       cardsEl.appendChild(card);
+    });
+
+    // Assign to Case buttons
+    document.querySelectorAll('.assign-case-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const el = btn as HTMLButtonElement;
+        openAssignModal(el.dataset.runId!, el.dataset.caseId || undefined);
+      });
     });
 
     // Delete buttons
