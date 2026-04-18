@@ -9,6 +9,7 @@ import {
   cancelPendingSave,
   checkStorageUsage,
 } from "../services/runService.ts";
+import { getCases, assignRunToCase } from "../services/caseService.ts";
 import StepFieldRenderer from "./StepFieldRenderer.tsx";
 import AddStepModal from "./AddStepModal.tsx";
 
@@ -248,6 +249,8 @@ export default function RunApp({ templateId, base }: RunAppProps) {
   const [operatorName, setOperatorName] = useState("");
   const [operatorError, setOperatorError] = useState(false);
   const [pendingTemplate, setPendingTemplate] = useState<typeof templateRegistry[0] | null>(null);
+  const [selectedCaseId, setSelectedCaseId] = useState<string>("");
+  const [availableCases, setAvailableCases] = useState<ReturnType<typeof getCases>>([]);
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [reviewStep, setReviewStep] = useState<RunStep | null>(null);
   const [showAddStep, setShowAddStep] = useState(false);
@@ -288,6 +291,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
 
     console.log("[RunApp] template found, showing operator modal", { templateId: template.id, templateName: template.name });
     setPendingTemplate(template);
+    setAvailableCases(getCases());
     setShowOperatorModal(true);
     setLoading(false);
   }, []);
@@ -310,7 +314,7 @@ export default function RunApp({ templateId, base }: RunAppProps) {
   }, [run]);
 
   const handleStartRun = () => {
-    console.log("[RunApp] handleStartRun", { operatorName, pendingTemplateId: pendingTemplate?.id });
+    console.log("[RunApp] handleStartRun", { operatorName, pendingTemplateId: pendingTemplate?.id, selectedCaseId });
     if (!operatorName.trim()) {
       setOperatorError(true);
       console.warn("[RunApp] handleStartRun: operator name is empty");
@@ -320,8 +324,12 @@ export default function RunApp({ templateId, base }: RunAppProps) {
       console.warn("[RunApp] handleStartRun: no pendingTemplate");
       return;
     }
-    const newRun = startRun(pendingTemplate, operatorName.trim());
-    console.log("[RunApp] handleStartRun: run created", { runId: newRun.runId });
+    const caseId = selectedCaseId || undefined;
+    const newRun = startRun(pendingTemplate, operatorName.trim(), caseId);
+    if (caseId) {
+      assignRunToCase(caseId, newRun.runId);
+    }
+    console.log("[RunApp] handleStartRun: run created", { runId: newRun.runId, caseId });
     setRun(newRun);
     setShowOperatorModal(false);
     setPendingTemplate(null);
@@ -515,6 +523,30 @@ export default function RunApp({ templateId, base }: RunAppProps) {
               <label className="label pt-1">
                 <span className="label-text-alt text-error">Name is required to start</span>
               </label>
+            )}
+          </div>
+
+          <div className="form-control mt-4">
+            <label className="label pb-1">
+              <span className="label-text font-semibold">Assign to Case</span>
+              <span className="label-text-alt text-base-content/50">Optional</span>
+            </label>
+            {availableCases.length === 0 ? (
+              <div className="text-sm text-base-content/50 flex items-center gap-2">
+                <span>No cases yet.</span>
+                <a href={`${base}/cases`} className="link link-primary text-sm">Create a case</a>
+              </div>
+            ) : (
+              <select
+                className="select select-bordered w-full"
+                value={selectedCaseId}
+                onChange={(e) => setSelectedCaseId(e.target.value)}
+              >
+                <option value="">— None —</option>
+                {availableCases.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
             )}
           </div>
           <div className="modal-action">
